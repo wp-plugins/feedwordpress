@@ -1,109 +1,502 @@
-Change Log
-==========
+FeedWordPress Change Log
+========================
+
+Changes from 0.981 to 0.99
+--------------------------
+Version 0.99 adds several significant new features, fixes some bugs, and
+provides compatability with WordPress 2.2.x and 2.3.x.
+
+*	WORDPRESS 2.2 AND 2.3 COMPATIBILITY: FeedWordPress should now be
+	compatible with WordPress version 2.2 and the upcoming WordPress
+	version 2.3. In particular, it has been tested extensively against
+	WordPress 2.2.3 and WordPress 2.3 Release Candidate 1.
+
+*	AUTOMATIC UPDATES WITHOUT CRON: FeedWordPress now allows you to
+	automatically schedule checks for new posts without using external task
+	scheduling tools such as cron. In order to enable automatic updates, go
+	to **Syndication --> Options** and set "Check for new posts" to
+	"automatically." For details, see "Automatic Feed Updates" in
+	README.text.
+
+	An important side-effect of the changes to the update system is that if
+	you were previously using the cron job and the `update-feeds.php` script
+	to schedule updates, you need to change your cron set-up. The old
+	`update-feeds.php` script no longer exists. Instead, if you wish to use
+	a cron job to guarantee updates on a particular schedule, you should
+	have the cron job fetch the front page of your blog (for example, by
+	using `curl http://www.zyx.com/blog/ > /dev/null`) instead of activating
+	the `update-feeds.php` script. If automatic updates have been enabled,
+	fetching the front page will automatically trigger the update process.
+
+*	INTERFACE REORGANIZATION: All FeedWordPress functions are now located
+	under a top-level "Syndication" menu in the WordPress Dashboard. To
+	manage the list of syndicated sites, manually check for new posts on
+	one or more feeds, or syndicate a new site, you should use the main page
+	under **Syndication**. To change global settings for FeedWordPress,
+	you should use **Syndication --> Options**.
+
+*	FILE STRUCTURE REORGANIZATION: Due to a combination of changing styles
+	for FeedWordPress plugins and lingering bugs in the FeedWordPress admin
+	menu code, the code for FeedWordPress is now contained in two different
+	PHP files, which should be installed together in a subdirectory of your
+	plugins directory named `feedwordpress`. (See README.text for
+	installation and upgrade instructions relating to the change.)
+
+*	MULTIPLE CATEGORIES SETTING: Some feeds use non-standard methods to
+	indicate multiple categories within a single category element. (The most
+	popular site to do this is del.icio.us, which separates tags with a
+	space.) FeedWordPress now allows you to set an optional setting, for any
+	feed which does this, indicating the character or characters used to
+	divide multiple	categories, using a Perl-compatible regular expression.
+	(In the case of del.icio.us feeds, FeedWordPress will automatically use
+	\s for the pattern without your having to do any further configuration.)
+	To turn this setting on, simply use the "Edit" link for the feed that
+	you want to turn it on for.
+
+*	REGULAR EXPRESSION BUG FIXED: Eliminated a minor bug in the regular
+	expressions for e-mail addresses (used in parsing RSS `author`
+	elements), which could produce unsightly error messages for some users
+	parsing RSS 2.0 feeds.
+
+*	DATE / UPDATE BUG FIXED: A bug in date handling was eliminated that may
+	have caused problems if any of (1) WordPress, or (2) PHP, or (3) your
+	web server, or (4) your MySQL server, has been set to use a different
+	time zone from the one that any of the others is set to use. If
+	FeedWordPress has not been properly updating updated posts, or has been
+	updating posts when there shouldn't be any changes for the update, this
+	release may solve that problem.
+
+*	GOOGLE READER BUGS FIXED: A couple of bugs that made it difficult for
+	FeedWordPress to interact with Google Reader public feeds have been
+	fixed. Firstly, if you encountered an error message reading "There was a
+	problem adding the newsfeed. [SQL: ]" when you tried to add the feed,
+	the cause of this error has been fixed. Secondly, if you succeeded in
+	getting FeedWordPress to check a Google Reader feed, only to find that
+	the title of posts had junk squashed on to the end of them, that bug
+	has been fixed too. To fix this bug, you must install the newest version
+	of the optional MagpieRSS upgrade.
+
+*	FILTER PARAMETERS: Due to an old, old bug in WordPress 1.5.0 (which was
+	what was available back when I first wrote the filter interface),
+	FeedWordPress has traditionally only passed one parameter to
+	syndicated_item and syndicated_post filters functions -- an array
+	containing either the Magpie representation of a syndicated item from
+	the feed, or the database representation of a post about to be inserted
+	into the WordPress database. If you needed information about the feed
+	that the item came from, this was accessible only through a pair of
+	global variables, $fwp_channel and $fwp_feedmeta.
+
+	Since it's been a pretty long time since WordPress 1.5.0 was in
+	widespread usage, I have gone ahead and added an optional second
+	parameter to the invocation of the syndicated_item and syndicated_post
+	filters. If you have written a filter for FeedWordPress that uses either
+	of these hooks, you can now register that filter to accept 2 parameters.
+	If you do so, the second parameter will be a SyndicatedPost object,
+	which, among other things, allows you to access information about the
+	feed from which an item is syndicated using the $post->feed and the
+	$post->feedmeta elements (where $post is the name of the second
+	parameter).
+	
+	NOTE THAT THE OLD GLOBAL VARIABLES ARE STILL AVAILABLE, for the time
+	being at least, so existing filters will not break with the upgrade.
+	They should be considered deprecated, however, and may be eliminated in
+	the future.
+
+*	FILTER CHANGE / BUGFIX: the array that is passed as the first argument
+	syndicated_post filters no longer is no longer backslash-escaped for
+	MySQL when filters are called. This was originally a bug, or an
+	oversight; the contents of the array should only be escaped for the
+	database *after* they have gone through all filters. IF YOU HAVE WRITTEN
+	ANY syndicated_post FILTERS THAT PRESUME THE OLD BEHAVIOR OF PASSING IN
+	STRINGS THAT ARE ALREADY BACKSLASH-ESCAPED, UPDATE YOUR FILTERS
+	ACCORDINGLY.
+
+*	OTHER MINOR BUGFIXES AND INTERNAL CHANGES: The internal architecture of
+	FeedWordPress has been significantly changed to make the code more
+	modular and clean; hopefully this should help reduce the number of
+	compatibility updates that are needed, and make them easier and quicker
+	when they are needed.
+
+Changes from 0.98 to 0.981
+--------------------------
+Version 0.981 is a narrowly targeted bugfix and compatibility release, whose
+main purpose is to resolve a major outstanding problem: the incompatibility
+between version 0.98 of WordPress and the recently released WordPress 2.1.
+
+*	WORDPRESS 2.1 COMPATIBILITY: FeedWordPress is now compatible with
+	WordPress 2.1, as well as retaining its existing support for WordPress
+	2.0 and 1.5. Incompatibilities that resulted in database warnings, fatal
+	errors, and which prevented FeedWordPress from syndicating new posts,
+	have been eliminated.
+
+*	RSS-FUNCTIONS.PHP RENAMED TO RSS.PHP: if you use the upgraded MagpieRSS
+	replacement that's included with FeedWordPress, be sure to note that
+	there are now *two* files to upload from the `OPTIONAL/wp-includes`
+	subdirectory in order to carry out the upgrade: rss-functions.php and
+	rss.php. **It is necessary to upload both files**, due to a change in
+	the file naming scheme in WordPress 2.1, and it is necessary to do so
+	whether you are using WordPress 2.1 or not. If you only upload the
+	`rss-functions.php` file as in previous installations you will not have
+	a working copy of MagpieRSS; the rss.php file contains the actual code.
+
+*	DATE BUG AFFECTING SOME PHP INSTALLATIONS RESOLVED: due to a subtle bug
+	in parse_w3cdtf(), some installations of PHP encountered problems with
+	FeedWordPress's attempt to date posts, which would cause some new posts
+	on Atom feeds to be dated as if they had apppeared in 1969 or 1970
+	(thus, effectively, never appearing on front apge at all). This bug in
+	the date handling should now be fixed.
+
+*	PHP <?=...?> SHORT FORM ELIMINATED: some installations of PHP do not
+	allow the <?=...?> short form for printing PHP values, which was used
+	extensively in the FeedWordPress interface code. Since this could cause
+	fatal errors for users with the wrong installation of PHP, the short
+	form has been replaced with full PHP echo statements, and is no longer
+	used in FeedWordPress.
+
+*	BETTER USER INTERFACE INTEGRATION WITH WORDPRESS 2.x: Some minor changes
+	have been made to help the FeedWordPress interface pages blend in better
+	with the user interface when running under WordPress 2.x.
+
+* 	GLOBAL CATEGORIES BUG RESOLVED: a bug that prevented some users from
+	setting one or more categories to apply to syndicated posts from all
+	feeds (using the checkbox interface under Options --> Syndication) has
+	been resolved.
+
+Changes from 0.97 to 0.98
+--------------------------
+
+*	WORDPRESS 2.0 COMPATIBILITY: This is a narrowly-targeted release to
+	solve a major outstanding problem. FeedWordPress is now compatible with
+	both WordPress 1.5 and WordPress 2.0. Incompatibilities that caused
+	fatal SQL errors, and a more subtle bug with off-kilter counts of posts
+	under a given category, have been resolved. FeedWordPress tests for
+	database schema using the global $wp_db_version variable (if null, then
+	we presume that we're dealing with WordPress 1.5).
+
+	NOTE: I have **not** fully tested FeedWordPress with WordPress 2.0.
+	Further testing may reveal more bugs. However, you should now be able
+	to get at least basic FeedWordPress functionality up and running.
+
+*	AUTHOR MATCHING: FeedWordPress tests several fields to see if it can
+	identify the author of the post as a user already in the WordPress user
+	database. In previous versions, it tested the user login, the nickname,
+	and tested for "aliases" listed in the Profile (see documentation). FWP
+	now also matches authors on the basis of e-mail address (*if* an e-mail
+	address is present). This is particularly helpful for formats such as
+	RSS 2.0, in which authors are primarily identified by e-mail addresses.
+
+Changes from 0.96 to 0.97
+-------------------------
+
+*	INSTALLATION PROCEDURE: Some of the changes between 0.96 and 0.97
+	require upgrades to the meta-data stored by FeedWordPress to work
+	properly. Thus, if you are upgrading from 0.96 or earlier to 0.97, most
+	FeedWordPress operations (including updates and template functions)
+	WILL BE DISABLED until you run the upgrade procedure. Fortunately,
+	running the upgrade procedure is easy: just go to either Options -->
+	Syndication or Links --> Syndicated in the WordPress Dashboard and press
+	the button.
+
+*	FEED FORMAT SUPPORT: Support has been added for the Atom 1.0 IETF
+	standard. Several other elements are also newly supported
+	(dcterms:created, dcterms:issued, dcterms:modified, dc:identifier,
+	proper support for the RSS 2.0 guid element, the RSS 2.0 author element,
+	the use of Atom author or Dublin Core dc:creator constructs at the feed
+	level to identify the author of individual items, etc.)
+
+	N.B.: full support of several Atom 1.0 features, such as categories
+	and enclosures, requires you to install the optional rss-functions.php
+	upgrade in your wp-includes directory.
+
+*	BUG FIX: Running `update-feeds.php` from command line or crontab
+	returned "I don't syndicate..." errors. It turns out that WordPress
+	sometimes tramples on the internal PHP superglobals that I depended on
+	to determine whether or not the script was being invoked from the
+	command line. This has been fixed (the variables are now checked
+	*before* WordPress can trample them). Note that `update-feeds.php` has
+	been thoroughly overhauled anyway; see below for details.
+
+*	BUG FIX: Duplicate categories or author names. Fixed two bugs that could
+	create duplicate author and/or category names when the name contained
+	either (a) certain international characters (causing a mismatch between
+	MySQL and PHP's handling of lowercasing text), or (b) characters that
+	have a special meaning in regular expressions (causing MySQL errors when
+	looking for the author or category due to regexp syntax errors). These
+	should now be fixed thanks to careful escaping of names that go into
+	regular expressions and careful matching of lowercasing functions
+	(comparing results from PHP only to other results from PHP, and results
+	from MySQL only to other results from MySQL).
+
+*	BUG FIX: Items dated Decembr 31, 1969 should appear less often. The
+	function for parsing W3C date-time format dates that ships with
+	MagpieRSS can only correctly parse fully-specified dates with a
+	fully-specified time, but valid W3C date-time format dates may omit the
+	time, the day of the month, or even the month. Some feeds in the wild
+	date their items with coarse-grained dates, so the optional
+	`rss-functions.php` upgrade now	includes a more flexible parse_w3cdtf()
+	function that will work with both coarse-grained and fully-specified
+	dates. (If parts of the date or the time are omitted, they are filled in
+	with values based on the current time, so '2005-09-10' will be dated to
+	the current time on that day; '2004' will be dated to this day and time
+	one year ago.
+
+	N.B.: This fix is only available in the optional `rss-functions.php`
+	upgrade.
+
+*	BUG FIX: Evil use of HTTP GET has been undone. The WordPress interface
+	is riddled with	inappropriate (non-idempotent) uses of HTTP GET queries
+	(ordinary links	that make the server do something with significant
+	side-effects, such as deleting a post or a link from the database).
+	FeedWordPress did some of this too, especially in places where it aped
+	the WordPress interface	(e.g. the "Delete" links in Links -->
+	Syndicated). That's bad business, though. I've changed the interface so
+	that all the examples of improper side-effects that I can find now
+	require an HTTP POST to take effect. I think I got pretty much
+	everything; if there's anything that I missed, let me know.
+
+	Further reading: [Sam Ruby 2005-05-06: This Stuff Matters]	(http://www.intertwingly.net/blog/2005/05/06/This-Stuff-Matters)
+
+*	BUG FIX: Categories applied by `cats` setting should no longer prevent
+	category-based filtering from working. In FeedWordPress, you can (1)
+	apply certain categories to all syndicated posts, or all posts from
+	a particular feed; and (2) filter out all posts that don't match one
+	of the categories that are already in the WordPress database (allowing
+	for simple category-based filtering; just load up WordPress with the
+	categories you want to accept, and then tell FeedWordPress not to create
+	new ones). However, the way that (1) and (2) were implemented meant that
+	you couldn't effectively use them together; once you applied a known
+	category to all syndicated posts from a particular feed, it meant that
+	they'd have at least one familiar category (the category or categories
+	you were applying), and that would get all posts past the filter no
+	matter what categories they were originally from.
+	
+	Well, no longer. You can still apply categories to all syndicated posts
+	(using either Syndication --> Options, or the feed-level settings under
+	Links --> Syndicated). But these categories are not applied to the post
+	until *after* it has already passed by the "familiar categories" filter.
+	So now, if you want, you can do category filtering and *then* apply as
+	many categories as you please to all and only posts that pass the filter.
+
+*	BUG FIX: Other minor typos and HTML gaffes were fixed along the way.
+
+*	PERFORMANCE: get_feed_meta() no longer hits the database for information
+	on every call; it now caches link data in memory, so FeedWordPress only
+	goes to the database once for each syndicated link. This may
+	substantially improve performance if your database server resources
+	are tight and your templates make a lot of use of custom settings from
+	get_feed_meta().
+
+*	API CHANGE: Link ID numbers, rather than RSS URIs, are now used to
+	identify the feed from which a post is syndicated when you use template
+	functions such as get_feed_meta(). The practical upshot of this is you
+	can switch feeds, or change the feed address for a particular syndicated
+	site, without breaking your templates for all the posts that were
+	syndicated from the earlier URI.
+
+*	API CHANGE: if you have plugins or templates that make use of the
+	get_feed_meta() function or the $fwp_feedmeta global, note that the
+	data formerly located under the `uri` and `name` fields is now located
+	under the `link/uri` field and the `link/name` field, respectively. Note
+	also that you can access the link ID number for any given feed under the
+	global $fwp_feedmeta['link/id'] (in plugins) or 
+	get_feed_meta('link/id') (in a template in post contexts).
+	
+*	FEATURE: the settings for individual feeds can now be edited using a
+        humane interface (where formerly you had to tweak key-value pairs in the
+	Link Notes section). To edit settings for a feed, pick the feed that you
+	want under Links --> Syndicated and click the Edit link.
+
+*	FEATURE: The "Unsubscribe" button (formerly "Delete") in Links -->
+	Syndicated now offers three options for unsubscribing from a feed: (1)
+	turning off the subscription without deleting the feed data or affecting
+	posts that were syndicated from the feed (this works by setting the Link
+	for the feed as "invisible"); (2) deleting the feed data and all of the
+	posts that were syndicated from the feed; or (3) deleting the feed data
+	and *keeping* the posts that were syndicated from the feed
+	setting the Link to "Invisible" (meaning that it will not be displayed
+	in lists of the site links on the front page, and it won't be checked
+	for updates; (2) deleting the Link and all of the posts that were
+	syndicated from its feed; or (3) deleting the feed data but keeping the
+	posts that were syndicated (which will henceforward be treated as if
+	they were local rather than syndicated posts). (Note that (1) is usually
+	the best option for aggregator sites, unless you want to clean up the
+	results of an error or a test.)
+
+*	FEATURE / BUG FIX: If you have been receiving mysterious "I don't
+	syndicate...", or "(local) HTTP status code was not 200", or "(local)
+	transport error - could not open socket", or "parse error - not well
+	formed" errors, then this update may solve your problems, and if it does
+	*not* solve them, it will at least make the reasons for the problems
+	easier to understand. That's because I've overhauled the way that
+	FeedWordPress goes about updating feeds.
+
+	If you use the command-line PHP scripting method to run scheduled
+	updates, then not much should change for you, except for fewer
+	mysterious errors. If you have done updates by sending periodic HTTP
+	requests to <http://your-blog.com/path/wp-content/update-feeds.php>,
+	then the details have changed somewhat; mostly in such a way as to make
+	things easier on you. See the README file or online documentation on
+	Staying Current for the details.
+
+*	FEATURE: FeedWordPress now features a more sophisticated system for
+	timed updates. Instead of polling *every* subscribed feed for updates
+	*each* time `update-feeds.php` is run, FeedWordPress now keeps track of
+	the last time it polled each feed, and only polls them again after a
+	certain period of time has passed. The amount of time is normally set
+	randomly for each feed, in a period between 30 minutes and 2 hours (so
+	as to stagger updates over time rather than polling all of the feeds at once. However, the length of time between updates can also be set
+	directly by the feed, which brings us to ...
+	
+*	FEATURE: FeedWordPress now respects the settings in the `ttl` and
+	Syndication Module RSS elements. Feeds with these elements set will not
+	be polled any more frequently than they indicate with these feeds unless
+	the user manually forces FeedWordPress to poll the feed (see Links -->
+	Syndicated --> Edit settings).
+
+Changes from 0.95 to 0.96
+-------------------------
+
+*	FEATURE: support has been added for enclosures in RSS 2.0 and Atom
+	0.6+ newsfeeds. WordPress already supports adding enclosures to an
+	item; FeedWordPress merely gets the information on the enclosure
+	from the feed it is syndicating and plugs that information directly
+	into the WordPress database so that (among other things) that post
+	will have its enclosure listed in your blog's RSS 2 newsfeed.
+
+	Note that enclosure support requires using the optional MagpieRSS
+	upgrade (i.e., replacing your `wp-includes/rss-functions.php` with `OPTIONAL/wp-includes/rss-functions.php` from the FWP archive)
+
+*	FEATURE: for completeness's sake, there is now a feed setting,
+	`hardcode url`, that allows you to set the URI for the front page
+	of a contributor's website manually (that is, prevent it from being
+	automatically updated from the feed channel link on each update). To
+	set the URI manually, put a line like this in the Link Notes section
+	of a feed:
+	
+		hardcode url: yes
+	
+	You can also instruct FeedWordPress to use hardcoded URIs by default
+	on all feeds using Options --> Syndication
+
+*	FEATURE: by default, when FeedWordPress finds new syndicated posts,
+	it (1) publishes them immediately, (2) turns comments off, and (3)
+	turns trackback / pingback pings off. You can now alter all three
+	default behaviors (e.g., to allow pings on syndicated posts, or to
+	send newly-syndicated posts to the draft pile for moderation) using
+	Options --> Syndication
+
 
 Changes from 0.91 to 0.95
 -------------------------
 
-*	BUG FIX: Fixed an obscure bug in the handling of categories: categories
-	with trailing whitespace could cause categories with duplicate names to
-	be created. This no longer happens. While I was at it I tightened up the
-	operation of FeedWordPress::lookup_categories() a bit in general.
+*	BUG FIX: Fixed an obscure bug in the handling of categories:
+	categories with trailing whitespace could cause categories with
+	duplicate names to be created. This no longer happens. While I was
+	at it I tightened up the operation of
+	FeedWordPress::lookup_categories() a bit in general.
 
 *	FEATURE DEPRECATED: the feed setting `hardcode categories` is now
-	deprecated in favor of `unknown categories` (see below), which allows
-	you to strip off any syndication categories not already in your database
-	using `unknown categories: default` or `unknown categories: filter`. If
-	you have `hardcode categories: yes` set on a feed, this will be treated
-	as `unknown categories: default` (i.e., no new categories will be added,
-	but if a post doesn't match any of the categories it will be added in
-	the default category--usually "Uncategorized" or "General").
+	deprecated in favor of `unknown categories` (see below), which
+	allows you to strip off any syndication categories not already in
+	your database using `unknown categories: default` or `unknown
+	categories: filter`. If you have `hardcode categories: yes` set on a
+	feed, this will be treated as `unknown categories: default` (i.e.,
+	no new categories will be added, but if a post doesn't match any of
+	the categories it will be added in the default category--usually
+	"Uncategorized" or "General").
 
 *	FEATURE: You can now set global defaults as to whether or not
-	FeedWordPress will update the Link Name and Link Description settings
-	for feeds automatically from the feed title and feed tagline. (By
-	default, it does, as it has in past versions.) Whether this behavior is
-	turned on or off, you can still override the default behavior using
-	feed settings of `hardcode name: yes`, `hardcode name: no`,
-	`hardcode description: yes`, or `hardcode description: no`.
+	FeedWordPress will update the Link Name and Link Description
+	settings for feeds automatically from the feed title and feed
+	tagline. (By default, it does, as it has in past versions.) Whether
+	this behavior is turned on or off, you can still override the
+	default behavior using feed settings of `hardcode name: yes`,
+	`hardcode name: no`, `hardcode description: yes`, or `hardcode
+	description: no`.
 
-*	FEATURE: Users can now provide one or several "aliases" for an author,
-	just as they can for a category. For example, to make FeedWordPress
-	treat posts by "Joseph Cardinal Ratzinger" and "Pope Benedict XVI" as
-	by the same author, edit the user profile for Pope Benedict XVI and add
-	a line like this to the "User profile" field:
+*	FEATURE: Users can now provide one or several "aliases" for an
+	author, just as they can for a category. For example, to make
+	FeedWordPress treat posts by "Joseph Cardinal Ratzinger" and "Pope
+	Benedict XVI" as by the same author, edit the user profile for Pope
+	Benedict XVI and add a line like this to the "User profile" field:
 	
 		a.k.a.: Joseph Cardinal Ratzinger
 	
-	You can add several aliases, each on a line by itself. You can also add
-	any other text you like to the Profile without interfering with the
-	aliases.
+	You can add several aliases, each on a line by itself. You can also
+	add any other text you like to the Profile without interfering with
+	the aliases.
 	
-*	FEATURE: Users can now choose how to handle syndicated posts that are
-	in unfamiliar categories or by unfamiliar authors (i.e., categories or
-	authors whose names are not yet in the WordPress database). By default,
-	FeedWordPress will (as before) create a new category (or new author) and
-	use it for the current post and any future posts. This behavior can be
-	changed, either for all feeds or for one or another particular feed.
+*	FEATURE: Users can now choose how to handle syndicated posts that
+	are in unfamiliar categories or by unfamiliar authors (i.e.,
+	categories or authors whose names are not yet in the WordPress
+	database). By default, FeedWordPress will (as before) create a new
+	category (or new author) and use it for the current post and any
+	future posts. This behavior can be changed, either for all feeds or
+	for one or another particular feed.
 	
 	There are now three different options for an unfamiliar author: (1)
 	FeedWordPress can create a new author account and attribute the
-	syndicated post to the new account; (2) FeedWordPress can attribute the
-	post to an author if the author's name is familiar, and to a default
-	author (currently, this means the Site Administrator account) if it is
-	not; (3) FeedWordPress can drop posts by unfamiliar authors and 
-	syndicate only posts by authors who are already in the database.
+	syndicated post to the new account; (2) FeedWordPress can attribute
+	the post to an author if the author's name is familiar, and to a
+	default author (currently, this means the Site Administrator
+	account) if it is not; (3) FeedWordPress can drop posts by
+	unfamiliar authors and syndicate only posts by authors who are
+	already in the database.
 	
-	There are, similarly, two different options for an unfamiliar category:
-	(1) FeedWordPress can create new categories and place the syndicated
-	post in them; (2) FeedWordPress can drop the unfamiliar categories and
-	place syndicated posts only in categories that it is already familiar
-	with. In addition, FeedWordPress 0.95 lets you choose whether posts that
-	are in *no* familiar categories should be syndicated (and placed in the
-	default category for the blog) or simply dropped.
+	There are, similarly, two different options for an unfamiliar
+	category: (1) FeedWordPress can create new categories and place the
+	syndicated post in them; (2) FeedWordPress can drop the unfamiliar
+	categories and place syndicated posts only in categories that it is
+	already familiar with. In addition, FeedWordPress 0.95 lets you
+	choose whether posts that are in *no* familiar categories should be
+	syndicated (and placed in the default category for the blog) or
+	simply dropped.
 	
-	You can set the default behavior for both authors and categories using
-	the settings in Options --> Syndication. You can also set different
-	behavior for specific feeds by adding the `unfamiliar author` and / or
-	`unfamiliar categories` settings to the Link Notes section of a feed:
+	You can set the default behavior for both authors and categories
+	using the settings in Options --> Syndication. You can also set
+	different behavior for specific feeds by adding the `unfamiliar
+	author` and / or `unfamiliar categories` settings to the Link Notes
+	section of a feed:
 	
 		unfamiliar author: (create|default|filter)
 		unfamiliar categories: (create|default|filter)
 	
-	A setting of `unfamiliar author: create` will make FeedWordPress create
-	new authors to match unfamiliar author names *for this feed alone*. A
-	setting of `unfamiliar author: default` will make it assign posts from
-	unfamiliar authors to the default user account. A setting of
-	`unfamiliar author: filter` will cause all posts (from this feed alone)
-	to be dropped unless they are by an author already listed in the
-	database. Similiarly, `unfamiliar categories: create` will make
-	FeedWordPress create new categories to match unfamiliar category names
-	*for this feed alone*; `unfamiliar categories: default` will cause it
-	to drop any unfamiliar category names; and
+	A setting of `unfamiliar author: create` will make FeedWordPress
+	create new authors to match unfamiliar author names *for this feed
+	alone*. A setting of `unfamiliar author: default` will make it
+	assign posts from unfamiliar authors to the default user account. A
+	setting of `unfamiliar author: filter` will cause all posts (from
+	this feed alone) to be dropped unless they are by an author already
+	listed in the database. Similiarly, `unfamiliar categories: create`
+	will make FeedWordPress create new categories to match unfamiliar
+	category names *for this feed alone*; `unfamiliar categories:
+	default` will cause it to drop any unfamiliar category names; and
 	`unfamiliar categories: filter` will cause it to *both* drop any
-	unfamiliar category names *and* to only syndicate posts that are placed
-	in one or more familiar categories.
+	unfamiliar category names *and* to only syndicate posts that are
+	placed in one or more familiar categories.
 	
-	These two new features allow users to do some coarse-grained filtering
-	without having to write a PHP filter. Specifically, they offer an easy
-	way for you to filter feeds by category or by author. Suppose, for
-	example, that you only wanted to syndicate posts that your contributors
-	place in the "Llamas" category. You could do so by setting up your
-	installation of WordPress so that the only category in the database is
-	"Llamas," and then use Options --> Syndication to set "Unfamiliar
-	categories" to "don't create new categories and don't syndicate posts
-	unless they match at least one familiar category". Now, when you update,
-	only posts in the "Llamas" category will be syndicated by FeedWordPress.
+	These two new features allow users to do some coarse-grained
+	filtering without having to write a PHP filter. Specifically, they
+	offer an easy way for you to filter feeds by category or by author.
+	Suppose, for example, that you only wanted to syndicate posts that
+	your contributors place in the "Llamas" category. You could do so by
+	setting up your installation of WordPress so that the only category
+	in the database is "Llamas," and then use Options --> Syndication to
+	set "Unfamiliar categories" to "don't create new categories and
+	don't syndicate posts unless they match at least one familiar
+	category". Now, when you update, only posts in the "Llamas" category
+	will be syndicated by FeedWordPress.
 	
 	Similarly, if you wanted to filter one particular feed so that only
 	posts by (for example) the author "Earl J. Llama" were syndicated to
-	your site, you could do so by creating a user account for Earl J. Llama,
-	then adding the following line to the settings for the feed in Link
-	Notes:
+	your site, you could do so by creating a user account for Earl J.
+	Llama, then adding the following line to the settings for the feed
+	in Link Notes:
 	
 		unfamiliar author: filter
 	
-	This will cause any posts from this feed that are not authored by Earl
-	J. Llama to be discarded, and only the posts by Earl J. Llama will be
-	syndicated. (If the setting is used on one specific feed, it will not
-	affect how posts from other feeds are syndicated.)
+	This will cause any posts from this feed that are not authored by
+	Earl J. Llama to be discarded, and only the posts by Earl J. Llama
+	will be syndicated. (If the setting is used on one specific feed, it
+	will not affect how posts from other feeds are syndicated.)
 
