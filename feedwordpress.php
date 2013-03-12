@@ -104,6 +104,7 @@ if (!function_exists('wp_insert_user')) :
 endif;
 
 $dir = dirname(__FILE__); 
+require_once("${dir}/externals/myphp/myphp.class.php");
 require_once("${dir}/admin-ui.php");
 require_once("${dir}/feedwordpresssyndicationpage.class.php");
 require_once("${dir}/compatability.php"); // Legacy API             
@@ -224,6 +225,7 @@ if (!FeedWordPress::needs_upgrade()) : // only work if the conditions are safe!
 	add_filter('syndicated_item_content', array('SyndicatedPost', 'resolve_relative_uris'), 0, 2);
 	add_filter('syndicated_item_content', array('SyndicatedPost', 'sanitize_content'), 0, 2);
 
+	add_action('plugins_loaded', array('FeedWordPress', 'admin_api'));
 else :
 	# Hook in the menus, which will just point to the upgrade interface
 	add_action('admin_menu', 'fwp_add_pages');
@@ -653,6 +655,8 @@ function syndication_comments_feed_link ($link) {
 ################################################################################
 
 function fwp_add_pages () {
+	global $feedwordpress;
+	
 	$menu_cap = FeedWordPress::menu_cap();
 	$settings_cap = FeedWordPress::menu_cap(/*sub=*/ true);
 	$syndicationMenu = FeedWordPress::path('syndication.php');
@@ -706,6 +710,9 @@ function fwp_add_pages () {
 		$syndicationMenu, 'FeedWordPress Diagnostics', 'Diagnostics',
 		$settings_cap, FeedWordPress::path('diagnostics-page.php')
 	);
+	
+	add_filter('page_row_actions', array($feedwordpress, 'row_actions'), 10, 2);
+	add_filter('post_row_actions', array($feedwordpress, 'row_actions'), 10, 2);
 } /* function fwp_add_pages () */
 
 function fwp_check_debug () {
@@ -946,7 +953,7 @@ class FeedWordPress {
 		endif;
 		
 		return $sub;
-	} /* FeedWordPress::subscriptions () */
+	} /* FeedWordPress::subscription () */
 	
 	# function update (): polls for updates on one or more Contributor feeds
 	#
@@ -1207,6 +1214,29 @@ class FeedWordPress {
 		endif;
 	} /* FeedWordPress::admin_init() */
 
+	function admin_api () {
+		// This sucks, but WordPress doesn't give us any other way to
+		// easily invoke a permanent-delete from a plugged in post
+		// actions link. So we create a magic parameter, and when this
+		// magic parameter is activated, the WordPress trashcan is
+		// temporarily de-activated.
+		
+		if (MyPHP::request('fwp_post_delete')=='nuke') :
+			// Get post ID #
+			$post_id = MyPHP::request('post');
+			if (!$post_id) :
+				$post_id = MyPHP::request('post_ID');
+			endif;
+			
+			// Make sure we've got the right nonce and all that.
+			check_admin_referer('delete-post_' . $post_id);
+			
+			// If so, disable the trashcan.
+			define('EMPTY_TRASH_DAYS', 0);
+		endif;
+
+	}
+
 	function init () {
 		global $fwp_path;
 		
@@ -1245,9 +1275,117 @@ class FeedWordPress {
 			/*priority=*/ -100
 		);
 
+		add_action('wp_ajax_fwp_feeds', array($this, 'fwp_feeds'));
+		add_action('wp_ajax_fwp_feedcontents', array($this, 'fwp_feedcontents'));
+		add_action('wp_ajax_fwp_xpathtest', array($this, 'fwp_xpathtest'));
+		
 		$this->clear_cache_magic_url();
 		$this->update_magic_url();
 	} /* FeedWordPress::init() */
+	
+	function fwp_feeds () {
+		$feeds = array();
+		$feed_ids = $this->feeds;
+		
+		foreach ($feed_ids as $id) :
+			$sub = $this->subscription($id);
+			$feeds[] = array(
+			"id" => $id,
+			"url" => $sub->uri(),
+			"name" => $sub->name(/*fromFeed=*/ false),
+			);
+		endforeach;
+
+		header("Content-Type: application/json");	
+		echo json_encode($feeds);
+		exit;
+	}
+
+	function fwp_feedcontents () {
+		$feed_id = MyPHP::request('feed_id');
+		
+		// Let's load up some data from the feed . . .
+		$feed = $this->subscription($feed_id);
+		$posts = $feed->live_posts();
+		
+		if (is_wp_error($posts)) :
+			header("HTTP/1.1 502 Bad Gateway");
+			$result = $posts;
+		else :
+			$result = array();
+
+			foreach ($posts as $post) :
+				$p = new SyndicatedPost($post, $feed);
+				
+				$result[] = array(
+					"post_title" => $p->entry->get_title(),
+					"post_link" => $p->permalink(),
+					"guid" => $p->guid(),
+					"post_date" => $p->published(),
+				);
+			endforeach;
+		endif;
+		
+		header("Content-Type: application/json");
+		
+		echo json_encode($result);
+		
+		// This is an AJAX request, so close it out thus.
+		die;
+	} /* FeedWordPress::fwp_feedcontents () */
+	
+	function fwp_xpathtest () {
+		$xpath = MyPHP::request('xpath');
+		$feed_id = MyPHP::request('feed_id');
+		$post_id = MyPHP::request('post_id');
+		
+		$expr = new FeedWordPressParsedPostMeta($xpath);
+		
+		// Let's load up some data from the feed . . .
+		$feed = $this->subscription($feed_id);
+		$posts = $feed->live_posts();
+		
+		if (!is_wp_error($posts)) :
+			if (strlen($post_id) == 0) :
+				$post = $posts[0];
+			else :
+				$post = null;
+	
+				foreach ($posts as $p) :
+					if ($p->get_id() == $post_id) :
+						$post = $p;
+					endif;
+				endforeach;
+			endif;
+		
+			$post = new SyndicatedPost($post, $feed);
+			$meta = $expr->do_substitutions($post);
+			
+			$result = array(
+			"post_title" => $post->entry->get_title(),
+			"post_link" => $post->permalink(),
+			"guid" => $post->guid(),
+			"expression" => $xpath,
+			"results" => $meta
+			);
+		else :
+			$result = array(
+			"expression" => $xpath,
+			"feed_id" => $feed_id,
+			"post_id" => $post_id,
+			"results" => $posts
+			);
+			
+			header("HTTP/1.1 503 Bad Gateway");
+		endif;
+		
+		header("Content-Type: application/json");
+		
+		echo json_encode($result);
+		
+		// This is an AJAX request, so close it out thus.
+		die;
+	} /* FeedWordPress::fwp_xpathtest () */
 	
 	function redirect_retired () {
 		global $wp_query;
@@ -1265,6 +1403,34 @@ class FeedWordPress {
 				exit;
 			endif;
 		endif;
+	}
+	
+	function row_actions ($actions, $post) {
+		if (is_syndicated($post->ID)) :
+			$link = get_delete_post_link($post->ID, '', true);
+			$link = MyPHP::url($link, array("fwp_post_delete" => "nuke"));
+			
+			$caption = 'Erase the record of this post (will be re-syndicated if it still appears on the feed).';
+			$linktext = 'Erase/Resyndicate';
+			
+			$keys = array_keys($actions);
+			$links = array();
+			foreach ($keys as $key) :
+				$links[$key] = $actions[$key];
+				
+				if ('trash'==$key) :
+					$links[$key] = "<a class='submitdelete' title='" . esc_attr( __( 'Move this item to the Trash (will NOT be re-syndicated)' ) ) . "' href='" . get_delete_post_link( $post->ID ) . "'>" . __( 'Trash/Don&#8217;t Resyndicate' ) . "</a>";
+					
+					// Placeholder.
+					$links['delete'] = '';
+				endif;
+			endforeach;
+			
+			$links['delete'] = '<a class="submitdelete" title="'.esc_attr(__($caption)).'" href="' . $link . '">' . __($linktext) . '</a>';
+
+			$actions = $links;
+		endif;
+		return $actions;
 	}
 	
 	function dashboard_setup () {
@@ -1385,10 +1551,7 @@ class FeedWordPress {
 	} /* FeedWordPress::clear_cache_magic_url() */
 	
 	function clear_cache_requested () {
-		return (
-			isset($_GET['clear_cache'])
-			and $_GET['clear_cache']
-		);
+		return MyPHP::request('clear_cache');
 	} /* FeedWordPress::clear_cache_requested() */
 
 	function update_requested () {
@@ -2077,21 +2240,13 @@ EOMAIL;
 		return $path;
 	}
 	
+	// These are superceded by MyPHP::param/post/get/request, but kept
+	// here for backward compatibility.
 	function param ($key, $type = 'REQUEST', $default = NULL) {
-		$where = '_'.strtoupper($type);
-		$ret = $default;
-		if (isset($GLOBALS[$where]) and is_array($GLOBALS[$where])) :
-			if (isset($GLOBALS[$where][$key])) :
-				$ret = $GLOBALS[$where][$key];
-				if (get_magic_quotes_gpc()) :
-					$ret = stripslashes_deep($ret);
-				endif;
-			endif;
-		endif;
-		return $ret;
+		return MyPHP::param($key, $default, $type);
 	}
 	function post ($key, $default = NULL) {
-		return FeedWordPress::param($key, 'POST');
+		return MyPHP::post($key, $default);
 	}
 } // class FeedWordPress
 

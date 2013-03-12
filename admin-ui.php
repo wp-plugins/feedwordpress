@@ -163,12 +163,12 @@ class FeedWordPressAdminPage {
 		);
 		foreach ($submit_buttons as $field) :
 			if (isset($fwp_post[$field])) :
-				$link_id = $_REQUEST['save_link_id'];
+				$link_id = MyPHP::request('save_link_id');
 			endif;
 		endforeach;
 		
 		if (is_null($link_id) and isset($_REQUEST['link_id'])) :
-			$link_id = $_REQUEST['link_id'];
+			$link_id = MyPHP::request('link_id');
 		endif;
 
 		return $link_id;
@@ -187,7 +187,7 @@ class FeedWordPressAdminPage {
 	function stamp_link_id ($field = null) {
 		if (is_null($field)) : $field = 'save_link_id'; endif;
 		?>
-	<input type="hidden" name="<?php print esc_html($field); ?>" value="<?php print ($this->for_feed_settings() ? $this->link->id : '*'); ?>" />
+	<input type="hidden" name="<?php print esc_attr($field); ?>" value="<?php print ($this->for_feed_settings() ? $this->link->id : '*'); ?>" />
 		<?php
 	} /* FeedWordPressAdminPage::stamp_link_id () */
 
