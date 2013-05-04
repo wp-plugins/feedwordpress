@@ -241,6 +241,26 @@ class FeedWordPressAdminPage {
 <?php
 	} /* FeedWordPressAdminPage::ajax_interface_js () */
 
+	function admin_page_href ($page, $params = array(), $link = NULL) {
+		global $fwp_path;
+
+		// Merge in the page's filename
+		$params = array_merge($params, array('page' => $fwp_path.'/'.$page));
+
+		// If there is a link ID provided, then merge that in too.
+		if (!is_null($link)) :
+			if (is_object($link)) :
+				$link_id = $link->link_id;
+			else :
+				$link_id = $link;
+			endif;
+
+			$params = array_merge($params, array('link_id' => $link_id));
+		endif;
+
+		return MyPHP::url('admin.php', $params);
+	} /* FeedWordPressAdminPage::admin_page_href () */
+
 	function display_feed_settings_page_links ($params = array()) {
 		global $fwp_path;
 
@@ -345,8 +365,9 @@ class FeedWordPressAdminPage {
 	} /* FeedWordPressAdminPage::display_feed_select_dropdown() */
 
 	function display_sheet_header ($pagename = 'Syndication', $all = false) {
+		global $fwp_path;
 		?>
-		<div class="icon32"><img src="<?php print esc_html(WP_PLUGIN_URL.'/'.$GLOBALS['fwp_path'].'/feedwordpress.png'); ?>" alt="" /></div>
+		<div class="icon32"><img src="<?php print esc_html(WP_PLUGIN_URL.'/'.$fwp_path.'/feedwordpress.png'); ?>" alt="" /></div>
 		<h2><?php print esc_html(__($pagename.($all ? '' : ' Settings'))); ?><?php if ($this->for_feed_settings()) : ?>: <?php echo esc_html($this->link->name(/*from feed=*/ false)); ?><?php endif; ?></h2>
 		<?php
 	}
@@ -395,7 +416,7 @@ class FeedWordPressAdminPage {
 		if (is_null($filename)) :
 			$filename = basename($this->filename);
 		endif;
-		return "admin.php?page=${fwp_path}/".$filename;
+		return $this->admin_page_href($filename);
 	} /* FeedWordPressAdminPage::form_action () */
 
 	function update_message () {
@@ -403,6 +424,8 @@ class FeedWordPressAdminPage {
 	}
 
 	function display () {
+		global $fwp_post;
+
 		if (FeedWordPress::needs_upgrade()) :
 			fwp_upgrade_page();
 			return;
@@ -414,7 +437,7 @@ class FeedWordPressAdminPage {
 		// Process POST request, if any ////////////////
 		////////////////////////////////////////////////
 		if (strtoupper($_SERVER['REQUEST_METHOD'])=='POST') :
-			$this->accept_POST($GLOBALS['fwp_post']);
+			$this->accept_POST($fwp_post);
 		else :
 			$this->updated = false;
 		endif;
@@ -539,7 +562,7 @@ class FeedWordPressAdminPage {
 		endif;
 		
 		if (isset($params['site-wide-url'])) : $href = $params['site-wide-url'];
-		else : 	$href = "admin.php?page=${fwp_path}/${filename}";
+		else : 	$href = $this->admin_page_href($filename);
 		endif;
 		
 		if (isset($params['setting-default'])) : $settingDefault = $params['setting-default'];
@@ -1191,7 +1214,7 @@ function fwp_syndication_manage_page_links_table_rows ($links, $page, $visible =
 				);
 				?>
 	<td>
-	<strong><a href="<?php print $hrefPrefix; ?>feeds-page.php"><?php print esc_html($link->link_name); ?></a></strong>
+	<strong><a href="<?php print $this->admin_page_href('feeds-page.php', array(), $link); ?>"><?php print esc_html($link->link_name); ?></a></strong>
 	<div class="row-actions"><?php if ($subscribed) :
 		$page->display_feed_settings_page_links(array(
 			'before' => '<div><strong>Settings &gt;</strong> ',
